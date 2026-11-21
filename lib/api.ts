@@ -1,5 +1,5 @@
 import { setCurrentUser } from "./auth-client";
-import { dummyServices, Service } from "./dummyData";
+import { dummyServices, dummyAppointments, Service, Appointment } from "./dummyData";
 
 const wait = (ms: number = 300) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -22,4 +22,60 @@ export async function getFeaturedServices(): Promise<Service[]> {
 export async function getServices(): Promise<Service[]> {
   await wait(400);
   return dummyServices.filter((service) => service.status === "active");
+}
+
+// TODO(me): GET /api/services/:id - sends id / returns service details
+export async function getServiceById(id: string): Promise<Service | null> {
+  await wait(300);
+  const found = dummyServices.find((service) => service._id === id);
+  return found || null;
+}
+
+// TODO(me): POST /api/appointments - sends appointment data / returns created appointment
+export async function createAppointment(data: {
+  serviceId: string;
+  customerId: string;
+  serviceName: string;
+  serviceImage: string;
+  category: string;
+  customerName: string;
+  customerEmail: string;
+  appointmentDate: string;
+  timeSlot: string;
+  message?: string;
+  servicePrice: number;
+}): Promise<Appointment> {
+  await wait(500);
+
+  const isSlotTaken = dummyAppointments.some(
+    (item) =>
+      item.appointmentDate === data.appointmentDate &&
+      item.timeSlot === data.timeSlot &&
+      item.status !== "cancelled"
+  );
+
+  if (isSlotTaken) {
+    throw new Error("This time slot is already booked. Please choose another slot.");
+  }
+
+  const newAppointment: Appointment = {
+    _id: "apt-" + (dummyAppointments.length + 1),
+    serviceId: data.serviceId,
+    customerId: data.customerId,
+    serviceName: data.serviceName,
+    serviceImage: data.serviceImage,
+    category: data.category,
+    customerName: data.customerName,
+    customerEmail: data.customerEmail,
+    appointmentDate: data.appointmentDate,
+    timeSlot: data.timeSlot,
+    message: data.message,
+    servicePrice: data.servicePrice,
+    status: "pending",
+    paymentStatus: "unpaid",
+    createdAt: new Date().toISOString(),
+  };
+
+  dummyAppointments.unshift(newAppointment);
+  return newAppointment;
 }

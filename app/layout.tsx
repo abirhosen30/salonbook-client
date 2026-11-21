@@ -1,5 +1,7 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "react-hot-toast";
+import { Toaster as SonnerToaster } from "sonner";
+
 
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -28,6 +30,7 @@ export default function RootLayout({
       <body className="bg-[#FAF6F0] text-[#2D241E] min-h-screen flex flex-col">
         <ThemeProvider>
           <Toaster position="top-right" />
+          <SonnerToaster richColors position="top-right" />
           <Navbar />
           <div className="flex-1">{children}</div>
           <Footer />
