@@ -17,3 +17,9 @@ export async function getFeaturedServices(): Promise<Service[]> {
     .filter((service) => service.status === "active")
     .slice(0, 6);
 }
+
+// TODO(backend): GET /services?status=active - returns all active services
+export async function getServices(): Promise<Service[]> {
+  await wait(400);
+  return dummyServices.filter((service) => service.status === "active");
+}
