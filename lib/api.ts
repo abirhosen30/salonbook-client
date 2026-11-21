@@ -1,4 +1,5 @@
 import { setCurrentUser } from "./auth-client";
+import { dummyServices, Service } from "./dummyData";
 
 const wait = (ms: number = 300) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -7,4 +8,12 @@ export async function logout() {
   await wait(300);
   setCurrentUser(null);
   return { success: true, message: "Logged out successfully" };
+}
+
+// TODO(backend): GET /services?status=active&limit=6 - returns 6 active featured services
+export async function getFeaturedServices(): Promise<Service[]> {
+  await wait(400);
+  return dummyServices
+    .filter((service) => service.status === "active")
+    .slice(0, 6);
 }

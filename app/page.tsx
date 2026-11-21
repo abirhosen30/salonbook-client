@@ -1,7 +1,32 @@
+"use client";
+
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { ArrowRight, Sparkles } from "lucide-react";
+import { Service } from "@/lib/dummyData";
+import { getFeaturedServices } from "@/lib/api";
+import ServiceCard from "@/components/ServiceCard";
+import Loader from "@/components/Loader";
 
 export default function HomePage() {
+  const [services, setServices] = useState<Service[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+
+  useEffect(() => {
+    async function loadFeaturedServices() {
+      try {
+        const data = await getFeaturedServices();
+        setServices(data);
+      } catch (error) {
+        console.error("Failed to load featured services", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadFeaturedServices();
+  }, []);
+
   return (
     <main className="min-h-screen">
       {/* Hero Banner Section */}
@@ -46,6 +71,53 @@ export default function HomePage() {
             </Link>
           </div>
         </div>
+      </section>
+
+      {/* Featured Salon Services Section */}
+      <section className="py-16 sm:py-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="text-center max-w-2xl mx-auto mb-12">
+          <span className="text-xs font-semibold uppercase tracking-wider text-[#9E5739]">
+            Client Favorites
+          </span>
+          <h2 className="font-serif text-3xl sm:text-4xl font-bold text-[#2D241E] mt-2">
+            Featured Salon Services
+          </h2>
+          <p className="mt-3 text-sm sm:text-base text-[#2D241E]/70 leading-relaxed">
+            Hand-picked treatments frequently booked and celebrated by our distinguished guests.
+          </p>
+        </div>
+
+        {/* Loading State */}
+        {loading && <Loader />}
+
+        {/* Empty State */}
+        {!loading && services.length === 0 && (
+          <p className="text-center text-sm text-[#2D241E]/60 py-12">
+            No active services found.
+          </p>
+        )}
+
+        {/* Responsive Grid (1 col mobile, 2 col tablet, 3 col desktop) */}
+        {!loading && services.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {services.map((service) => (
+              <ServiceCard key={service._id} service={service} />
+            ))}
+          </div>
+        )}
+
+        {/* Explore All CTA Button */}
+        {!loading && services.length > 0 && (
+          <div className="mt-12 text-center">
+            <Link
+              href="/services"
+              className="inline-flex items-center gap-2 px-6 py-3 text-sm font-medium text-[#9E5739] hover:text-white bg-transparent hover:bg-[#9E5739] border border-[#9E5739] rounded-full transition-all"
+            >
+              <span>Explore All Treatments</span>
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
+        )}
       </section>
     </main>
   );
