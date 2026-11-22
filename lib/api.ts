@@ -1,92 +1,232 @@
-import { signOut } from "./auth-client";
-import { dummyServices, dummyAppointments, Service, Appointment } from "./dummyData";
+import { signOut, authClient } from "./auth-client";
+import { Service, Appointment, User, Transaction } from "@/types";
 
-const wait = (ms: number = 300) => new Promise((resolve) => setTimeout(resolve, ms));
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000/api/v1";
 
-// TODO(me): POST /auth/logout - clears authentication session / returns success message
-export async function logout() {
-  await signOut();
-  return { success: true, message: "Logged out successfully" };
+// Helper for acquiring Better Auth token if available
+async function getAuthHeader(): Promise<Record<string, string>> {
+  try {
+    // Attempt to read JWT token from better-auth client plugin if available
+    const tokenFn = (authClient as Record<string, unknown>).token as (() => Promise<string>) | undefined;
+    if (typeof tokenFn === "function") {
+      const token = await tokenFn();
+      if (token) {
+        return { Authorization: `Bearer ${token}` };
+      }
+    }
+  } catch {
+    // Fall back to cookie-based session
+  }
+  return {};
 }
 
-// TODO(backend): GET /services?status=active&limit=6 - returns 6 active featured services
+async function apiFetch<T>(
+  endpoint: string,
+  options: RequestInit = {}
+): Promise<T> {
+  const authHeaders = await getAuthHeader();
+
+  const url = `${API_BASE_URL}${endpoint}`;
+  const response = await fetch(url, {
+    ...options,
+    credentials: "include", // Send session cookies across origins
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeaders,
+      ...options.headers,
+    },
+  });
+
+  const json = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    const errorMsg =
+      json?.message || json?.error || `Request failed with status ${response.status}`;
+    throw new Error(errorMsg);
+  }
+
+  return (json?.data !== undefined ? json.data : json) as T;
+}
+
+// ==========================================
+// Authentication APIs
+// ==========================================
+
+export async function logout(): Promise<{ success: boolean; message: string }> {
+  try {
+    await signOut();
+    await fetch(`${API_BASE_URL}/auth/logout`, {
+      method: "POST",
+      credentials: "include",
+    }).catch(() => null);
+    return { success: true, message: "Logged out successfully" };
+  } catch (error: unknown) {
+    const errorMsg = error instanceof Error ? error.message : "Failed to logout";
+    return { success: false, message: errorMsg };
+  }
+}
+
+// ==========================================
+// Services APIs
+// ==========================================
+
 export async function getFeaturedServices(): Promise<Service[]> {
-  await wait(400);
-  return dummyServices
-    .filter((service) => service.status === "active")
-    .slice(0, 6);
+  return apiFetch<Service[]>("/services?status=active&limit=6");
 }
 
-// TODO(backend): GET /services?status=active - returns all active services
-export async function getServices(): Promise<Service[]> {
-  await wait(400);
-  return dummyServices.filter((service) => service.status === "active");
+export interface GetServicesParams {
+  category?: string;
+  search?: string;
+  sort?: string;
+  status?: "active" | "inactive" | "all";
 }
 
-// TODO(me): GET /api/services/:id - sends id / returns service details
+export async function getServices(params: GetServicesParams = {}): Promise<Service[]> {
+  const searchParams = new URLSearchParams();
+
+  if (params.category && params.category !== "All") {
+    searchParams.set("category", params.category);
+  }
+  if (params.search && params.search.trim()) {
+    searchParams.set("search", params.search.trim());
+  }
+  if (params.sort && params.sort !== "default") {
+    searchParams.set("sort", params.sort);
+  }
+  if (params.status) {
+    searchParams.set("status", params.status);
+  } else {
+    searchParams.set("status", "active");
+  }
+
+  const queryStr = searchParams.toString();
+  const endpoint = `/services${queryStr ? `?${queryStr}` : ""}`;
+  return apiFetch<Service[]>(endpoint);
+}
+
 export async function getServiceById(id: string): Promise<Service | null> {
-  await wait(300);
-  const found = dummyServices.find((service) => service._id === id);
-  return found || null;
+  return apiFetch<Service>(`/services/${id}`);
 }
 
-// TODO(me): POST /api/appointments - sends appointment data / returns created appointment
+export async function createService(data: {
+  serviceName: string;
+  category: string;
+  description: string;
+  price: number;
+  duration: number;
+  image: string;
+  status: "active" | "inactive";
+}): Promise<Service> {
+  return apiFetch<Service>("/services", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateService(
+  id: string,
+  data: Partial<Omit<Service, "_id" | "createdAt">>
+): Promise<Service> {
+  return apiFetch<Service>(`/services/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteService(id: string): Promise<{ deletedId: string }> {
+  return apiFetch<{ deletedId: string }>(`/services/${id}`, {
+    method: "DELETE",
+  });
+}
+
+// ==========================================
+// Image Upload API (ImgBB)
+// ==========================================
+
+export async function uploadImage(file: File): Promise<string> {
+  const formData = new FormData();
+  formData.append("image", file);
+
+  const authHeaders = await getAuthHeader();
+
+  const response = await fetch(`${API_BASE_URL}/uploads/image`, {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      ...authHeaders,
+    },
+    body: formData,
+  });
+
+  const json = await response.json().catch(() => null);
+
+  if (!response.ok || !json?.success) {
+    const errorMsg =
+      json?.message || "Failed to upload image to hosting service.";
+    throw new Error(errorMsg);
+  }
+
+  return json.data.url;
+}
+
+// ==========================================
+// Appointment APIs
+// ==========================================
+
 export async function createAppointment(data: {
   serviceId: string;
-  customerId: string;
-  serviceName: string;
-  serviceImage: string;
-  category: string;
-  customerName: string;
-  customerEmail: string;
   appointmentDate: string;
   timeSlot: string;
   message?: string;
-  servicePrice: number;
+  customerId?: string;
+  customerName?: string;
+  customerEmail?: string;
+  serviceName?: string;
+  serviceImage?: string;
+  category?: string;
+  servicePrice?: number;
 }): Promise<Appointment> {
-  await wait(500);
+  return apiFetch<Appointment>("/appointments", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
 
-  const isSlotTaken = dummyAppointments.some(
-    (item) =>
-      item.appointmentDate === data.appointmentDate &&
-      item.timeSlot === data.timeSlot &&
-      item.status !== "cancelled"
+export async function getMyAppointments(): Promise<Appointment[]> {
+  return apiFetch<Appointment[]>("/appointments/my");
+}
+
+export async function cancelAppointment(
+  id: string
+): Promise<{ success: boolean; message: string }> {
+  return apiFetch<{ success: boolean; message: string }>(
+    `/appointments/${id}/cancel`,
+    {
+      method: "PATCH",
+    }
   );
-
-  if (isSlotTaken) {
-    throw new Error("This time slot is already booked. Please choose another slot.");
-  }
-
-  const newAppointment: Appointment = {
-    _id: "apt-" + (dummyAppointments.length + 1),
-    serviceId: data.serviceId,
-    customerId: data.customerId,
-    serviceName: data.serviceName,
-    serviceImage: data.serviceImage,
-    category: data.category,
-    customerName: data.customerName,
-    customerEmail: data.customerEmail,
-    appointmentDate: data.appointmentDate,
-    timeSlot: data.timeSlot,
-    message: data.message,
-    servicePrice: data.servicePrice,
-    status: "pending",
-    paymentStatus: "unpaid",
-    createdAt: new Date().toISOString(),
-  };
-
-  dummyAppointments.unshift(newAppointment);
-  return newAppointment;
 }
 
-// TODO(me): POST /api/upload - sends FormData with image file / returns image url
-export async function uploadImage(file: File): Promise<string> {
-  await wait(400);
-  if (typeof window !== "undefined") {
-    return URL.createObjectURL(file);
-  }
-  return "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80";
+// ==========================================
+// Stripe Payment APIs
+// ==========================================
+
+export async function createCheckoutSession(
+  appointmentId: string
+): Promise<{ url: string; sessionId?: string }> {
+  return apiFetch<{ url: string; sessionId?: string }>(
+    "/payments/create-checkout-session",
+    {
+      method: "POST",
+      body: JSON.stringify({ appointmentId }),
+    }
+  );
 }
+
+// ==========================================
+// Customer Dashboard APIs
+// ==========================================
 
 export type CustomerStats = {
   total: number;
@@ -95,43 +235,82 @@ export type CustomerStats = {
   cancelled: number;
 };
 
-// TODO(me): GET /api/customer/stats - sends user session / returns stats counts
 export async function getCustomerStats(): Promise<CustomerStats> {
-  await wait(300);
-  const total = dummyAppointments.length;
-  const pending = dummyAppointments.filter((a) => a.status === "pending").length;
-  const confirmed = dummyAppointments.filter((a) => a.status === "confirmed").length;
-  const cancelled = dummyAppointments.filter((a) => a.status === "cancelled").length;
-
-  return { total, pending, confirmed, cancelled };
+  return apiFetch<CustomerStats>("/customer/stats");
 }
 
-// TODO(me): GET /api/customer/appointments - sends user session / returns list of customer appointments
-export async function getMyAppointments(): Promise<Appointment[]> {
-  await wait(400);
-  return [...dummyAppointments];
+export async function getCustomerProfile(): Promise<User> {
+  return apiFetch<User>("/customer/profile");
 }
 
-// TODO(me): PATCH /api/appointments/:id/cancel - sends appointment id / returns updated appointment or success message
-export async function cancelAppointment(id: string): Promise<{ success: boolean; message: string }> {
-  await wait(400);
-  const index = dummyAppointments.findIndex((item) => item._id === id);
-  if (index !== -1) {
-    dummyAppointments[index] = {
-      ...dummyAppointments[index],
-      status: "cancelled",
-    };
-  }
-  return { success: true, message: "Appointment cancelled successfully" };
+export async function updateCustomerProfile(data: {
+  name?: string;
+  image?: string;
+  phone?: string;
+}): Promise<User> {
+  return apiFetch<User>("/customer/profile", {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
 }
 
-// TODO(me): POST /api/payment/create-checkout-session - sends appointmentId / returns stripe session url
-export async function createCheckoutSession(appointmentId: string): Promise<{ url: string }> {
-  await wait(500);
-  const apt = dummyAppointments.find((item) => item._id === appointmentId);
-  if (apt) {
-    apt.paymentStatus = "paid";
-  }
-  // Returns simulated checkout return url
-  return { url: `/dashboard/customer/appointments?payment_success=true` };
+// ==========================================
+// Admin Dashboard APIs
+// ==========================================
+
+export type AdminStats = {
+  totalRegisteredCustomers: number;
+  totalActiveServices: number;
+  totalAppointmentRequests: number;
+  pendingAppointments: number;
+  confirmedAppointments: number;
+  cancelledAppointments: number;
+  totalSuccessfulPayments: number;
+  totalRevenue: number;
+};
+
+export async function getAdminStats(): Promise<AdminStats> {
+  return apiFetch<AdminStats>("/admin/dashboard/stats");
+}
+
+export async function getAdminAppointments(
+  status?: string,
+  date?: string
+): Promise<Appointment[]> {
+  const params = new URLSearchParams();
+  if (status && status !== "all") params.set("status", status);
+  if (date) params.set("date", date);
+  const q = params.toString();
+  return apiFetch<Appointment[]>(`/admin/appointments${q ? `?${q}` : ""}`);
+}
+
+export async function updateAdminAppointmentStatus(
+  id: string,
+  status: "pending" | "confirmed" | "cancelled"
+): Promise<Appointment> {
+  return apiFetch<Appointment>(`/admin/appointments/${id}/status`, {
+    method: "PATCH",
+    body: JSON.stringify({ status }),
+  });
+}
+
+export async function getAdminUsers(): Promise<User[]> {
+  return apiFetch<User[]>("/admin/users");
+}
+
+export async function toggleAdminUserBlock(
+  id: string,
+  isBlocked: boolean
+): Promise<{ id: string; isBlocked: boolean }> {
+  return apiFetch<{ id: string; isBlocked: boolean }>(
+    `/admin/users/${id}/status`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ isBlocked }),
+    }
+  );
+}
+
+export async function getAdminTransactions(): Promise<Transaction[]> {
+  return apiFetch<Transaction[]>("/admin/transactions");
 }

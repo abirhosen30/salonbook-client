@@ -1,9 +1,9 @@
 import { mongodbAdapter } from "@better-auth/mongo-adapter"
 import { betterAuth } from "better-auth"
+import { jwt, bearer } from "better-auth/plugins"
 import { MongoClient } from "mongodb"
 
 const mongoUrl = process.env.MONGODB_URL
-const mongoDatabaseName = process.env.MONGODB_DATABASE || "salonbook"
 const authSecret = process.env.BETTER_AUTH_SECRET
 
 if (!mongoUrl) {
@@ -42,8 +42,24 @@ export const auth = betterAuth({
         defaultValue: "customer",
         input: false,
       },
+      isBlocked: {
+        type: "boolean",
+        required: false,
+        defaultValue: false,
+        input: false,
+      },
+      phone: {
+        type: "string",
+        required: false,
+        defaultValue: "",
+        input: true,
+      },
     },
   },
+  plugins: [
+    jwt(),
+    bearer(),
+  ],
   socialProviders: {
     google: {
       clientId: process.env.GOOGLE_CLIENT_ID as string,
