@@ -1,7 +1,7 @@
 import Link from "next/link"
 import Image from "next/image"
 import { Clock } from "lucide-react"
-import { Service } from "@/lib/dummyData"
+import { Service } from "@/types"
 
 interface ServiceCardProps {
   service: Service

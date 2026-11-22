@@ -14,7 +14,7 @@ import {
   Flower2,
   Star,
 } from "lucide-react"
-import { Service } from "@/lib/dummyData"
+import { Service } from "@/types"
 import { getFeaturedServices } from "@/lib/api"
 import { categoryList } from "@/lib/categories"
 import ServiceCard from "@/components/ServiceCard"

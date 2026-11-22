@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Search, SlidersHorizontal, RotateCcw } from "lucide-react";
-import { Service } from "@/lib/dummyData";
+import { Service } from "@/types";
 import { getServices } from "@/lib/api";
 import { categoryNames } from "@/lib/categories";
 import ServiceCard from "@/components/ServiceCard";
@@ -21,18 +21,17 @@ function ServicesContent() {
   const [selectedCategory, setSelectedCategory] = useState<string>(urlCategory || "All");
   const [sortBy, setSortBy] = useState<string>("default");
 
-  // Sync category if URL param changes
-  useEffect(() => {
-    if (urlCategory) {
-      setSelectedCategory(urlCategory);
-    }
-  }, [urlCategory]);
+  // Sync category if URL param changes without cascading render effect
+  const [prevUrlCategory, setPrevUrlCategory] = useState(urlCategory);
+  if (urlCategory !== prevUrlCategory) {
+    setPrevUrlCategory(urlCategory);
+    setSelectedCategory(urlCategory || "All");
+  }
 
   // Fetch active services
   useEffect(() => {
     async function loadServices() {
       try {
-        setLoading(true);
         const data = await getServices();
         setServices(data);
       } catch (error) {
