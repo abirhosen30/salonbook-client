@@ -61,8 +61,8 @@ export default function MyAppointments() {
   // State 5: Track ID of appointment currently processing payment
   const [payingId, setPayingId] = useState<string | null>(null);
 
-  // Function 1: Fetch appointments list from API
-  const fetchAppointments = async () => {
+  // Function 1: Load appointments from API
+  const refreshAppointments = async () => {
     try {
       setLoading(true);
       const data = await getMyAppointments();
@@ -77,7 +77,32 @@ export default function MyAppointments() {
   };
 
   useEffect(() => {
-    fetchAppointments();
+    let isCancelled = false;
+
+    async function loadInitial() {
+      try {
+        const data = await getMyAppointments();
+        if (!isCancelled) {
+          setAppointments(data);
+        }
+      } catch (error: unknown) {
+        if (!isCancelled) {
+          const errorMsg =
+            error instanceof Error ? error.message : "Failed to load appointments";
+          toast.error(errorMsg);
+        }
+      } finally {
+        if (!isCancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    loadInitial();
+
+    return () => {
+      isCancelled = true;
+    };
   }, []);
 
   // Function 2: Handle appointment cancellation
@@ -90,7 +115,7 @@ export default function MyAppointments() {
       toast.success(res.message || "Appointment cancelled");
       setCancelTarget(null);
       // Reload updated appointments list
-      await fetchAppointments();
+      await refreshAppointments();
     } catch (error: unknown) {
       const errorMsg =
         error instanceof Error ? error.message : "Failed to cancel appointment";
