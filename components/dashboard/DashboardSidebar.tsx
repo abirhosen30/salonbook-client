@@ -41,7 +41,7 @@ export default function DashboardSidebar({ onItemClick, onToggleCollapse }: Prop
   const adminLinks = [
     { label: "Overview", href: "/dashboard/admin", icon: LayoutDashboard },
     { label: "Manage Services", href: "/dashboard/admin/services", icon: Scissors },
-    { label: "Add Service", href: "/dashboard/admin/services/new", icon: PlusCircle },
+    { label: "Add Service", href: "/dashboard/admin/services/add", icon: PlusCircle },
     { label: "Manage Appointments", href: "/dashboard/admin/appointments", icon: CalendarCheck },
     { label: "Manage Users", href: "/dashboard/admin/users", icon: Users },
     { label: "Transactions", href: "/dashboard/admin/transactions", icon: CreditCard },
@@ -52,15 +52,25 @@ export default function DashboardSidebar({ onItemClick, onToggleCollapse }: Prop
   const links = user?.role === "admin" ? adminLinks : customerLinks;
 
   // Function 1: Check if a given link is currently active
-  // Fixed: Do NOT highlight "Manage Services" when visiting "Add Service" (/services/new)
+  // Ensures only ONE link is active at a time
   const isLinkActive = (href: string) => {
+    // If checking "Manage Services"
     if (href === "/dashboard/admin/services") {
+      // Active on main manage services page or when editing an existing service
       return (
         pathname === "/dashboard/admin/services" ||
-        (pathname.startsWith("/dashboard/admin/services/") &&
-          pathname !== "/dashboard/admin/services/new")
+        pathname.startsWith("/dashboard/admin/services/edit")
       );
     }
+
+    // If checking "Add Service"
+    if (href === "/dashboard/admin/services/add") {
+      return (
+        pathname === "/dashboard/admin/services/add" ||
+        pathname === "/dashboard/admin/services/new"
+      );
+    }
+
     // Check exact match for other routes
     return pathname === href;
   };
