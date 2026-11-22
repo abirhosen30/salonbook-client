@@ -79,3 +79,13 @@ export async function createAppointment(data: {
   dummyAppointments.unshift(newAppointment);
   return newAppointment;
 }
+
+// TODO(me): POST /api/upload - sends FormData with image file / returns image url
+export async function uploadImage(file: File): Promise<string> {
+  await wait(400);
+  // Simulates cloud image upload, falls back to object URL
+  if (typeof window !== "undefined") {
+    return URL.createObjectURL(file);
+  }
+  return "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80";
+}
