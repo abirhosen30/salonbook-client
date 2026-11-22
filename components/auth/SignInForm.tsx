@@ -12,7 +12,13 @@ import { Input } from "@/components/ui/input";
 export default function SignInForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectUrl = searchParams.get("redirect");
+  const requestedRedirectUrl = searchParams.get("redirect");
+  const redirectUrl =
+    requestedRedirectUrl?.startsWith("/") &&
+    !requestedRedirectUrl.startsWith("//") &&
+    !requestedRedirectUrl.includes("\\")
+      ? requestedRedirectUrl
+      : null;
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -20,12 +26,11 @@ export default function SignInForm() {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
 
-  // TODO(me): Replace this with your real signIn logic
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
+    const trimmedEmail = email.trim();
 
-    // --- basic validation ---
-    if (!email.trim() || !email.includes("@")) {
+    if (!trimmedEmail || !trimmedEmail.includes("@")) {
       toast.error("Please enter a valid email address");
       return;
     }
@@ -35,41 +40,30 @@ export default function SignInForm() {
       return;
     }
 
-    // Log the data so you can inspect it in DevTools
-    console.log("📋 Sign In Data:", { email: email.trim(), password });
-
     try {
       setLoading(true);
 
-      // TODO(me): call signIn.email here — example:
-      // const { data, error } = await signIn.email({
-      //   email: email.trim(),
-      //   password: password,
-      // });
-      //
-      // if (error) {
-      //   toast.error(error.message || "Invalid credentials");
-      //   return;
-      // }
-      //
-      // // check blocked
-      // if (data?.user?.isBlocked) {
-      //   toast.error("Your account is blocked");
-      //   return;
-      // }
-      //
-      // toast.success("Signed in successfully!");
-      //
-      // // redirect logic
-      // if (redirectUrl) {
-      //   router.push(redirectUrl);
-      // } else if (data?.user?.role === "admin") {
-      //   router.push("/dashboard/admin");
-      // } else {
-      //   router.push("/dashboard/customer");
-      // }
+      const { data, error } = await signIn.email({
+        email: trimmedEmail,
+        password,
+      });
 
-      toast.info("Sign in function is not implemented yet — check console for data");
+      if (error) {
+        toast.error(error.message || "Invalid credentials");
+        return;
+      }
+
+      toast.success("Signed in successfully!");
+
+      // redirect logic
+      if (redirectUrl) {
+        router.push(redirectUrl);
+      } else if (data?.user?.role === "admin") {
+        router.push("/dashboard/admin");
+      } else {
+        router.push("/dashboard/customer");
+      }
+
     } catch (error: unknown) {
       console.error("❌ Sign In Error:", error);
       const errorMsg =
