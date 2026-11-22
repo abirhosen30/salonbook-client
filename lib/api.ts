@@ -111,3 +111,27 @@ export async function getMyAppointments(): Promise<Appointment[]> {
   await wait(400);
   return [...dummyAppointments];
 }
+
+// TODO(me): PATCH /api/appointments/:id/cancel - sends appointment id / returns updated appointment or success message
+export async function cancelAppointment(id: string): Promise<{ success: boolean; message: string }> {
+  await wait(400);
+  const index = dummyAppointments.findIndex((item) => item._id === id);
+  if (index !== -1) {
+    dummyAppointments[index] = {
+      ...dummyAppointments[index],
+      status: "cancelled",
+    };
+  }
+  return { success: true, message: "Appointment cancelled successfully" };
+}
+
+// TODO(me): POST /api/payment/create-checkout-session - sends appointmentId / returns stripe session url
+export async function createCheckoutSession(appointmentId: string): Promise<{ url: string }> {
+  await wait(500);
+  const apt = dummyAppointments.find((item) => item._id === appointmentId);
+  if (apt) {
+    apt.paymentStatus = "paid";
+  }
+  // Returns simulated checkout return url
+  return { url: `/dashboard/customer/appointments?payment_success=true` };
+}
