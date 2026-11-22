@@ -19,13 +19,34 @@ if (process.env.NODE_ENV !== "production") {
   globalForMongo.mongoClient = mongoClient
 }
 
+const baseURL =
+  process.env.BETTER_AUTH_URL?.startsWith("http") && !process.env.BETTER_AUTH_URL.includes("localhost")
+    ? process.env.BETTER_AUTH_URL
+    : process.env.VERCEL_PROJECT_PRODUCTION_URL
+      ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+      : process.env.VERCEL_URL
+        ? `https://${process.env.VERCEL_URL}`
+        : process.env.BETTER_AUTH_URL || "http://localhost:3000";
+
+const trustedOrigins = [
+  "http://localhost:3000",
+  "http://127.0.0.1:3000",
+  "https://salonbook-client-henna.vercel.app",
+  "https://*.vercel.app",
+  process.env.BETTER_AUTH_URL,
+  process.env.NEXT_PUBLIC_APP_URL,
+  process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined,
+  process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : undefined,
+].filter(Boolean) as string[];
+
 export const auth = betterAuth({
   database: mongodbAdapter(mongoClient.db("salonbook"), {
     client: mongoClient,
     transaction: false,
   }),
   secret: authSecret,
-  baseURL: process.env.BETTER_AUTH_URL,
+  baseURL,
+  trustedOrigins,
   emailAndPassword: {
     enabled: true,
     autoSignIn: true,
