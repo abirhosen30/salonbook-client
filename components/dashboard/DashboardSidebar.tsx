@@ -13,16 +13,19 @@ import {
   CreditCard,
   LogOut,
   Sparkles,
+  PanelLeftClose,
 } from "lucide-react";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { logout } from "@/lib/api";
 
 type Props = {
-  // Optional callback to close the mobile drawer/sheet when a link is clicked
+  // Optional callback to close mobile drawer/sheet
   onItemClick?: () => void;
+  // Optional callback to collapse sidebar on desktop
+  onToggleCollapse?: () => void;
 };
 
-export default function DashboardSidebar({ onItemClick }: Props) {
+export default function DashboardSidebar({ onItemClick, onToggleCollapse }: Props) {
   const pathname = usePathname();
   const router = useRouter();
   const { user } = useCurrentUser();
@@ -45,17 +48,21 @@ export default function DashboardSidebar({ onItemClick }: Props) {
     { label: "My Profile", href: "/dashboard/admin/profile", icon: UserIcon },
   ];
 
-  // Pick the link set based on current user's role
+  // Pick the link set based on user's role
   const links = user?.role === "admin" ? adminLinks : customerLinks;
 
   // Function 1: Check if a given link is currently active
+  // Fixed: Do NOT highlight "Manage Services" when visiting "Add Service" (/services/new)
   const isLinkActive = (href: string) => {
-    // For root overview pages, check exact match
-    if (href === "/dashboard/customer" || href === "/dashboard/admin") {
-      return pathname === href;
+    if (href === "/dashboard/admin/services") {
+      return (
+        pathname === "/dashboard/admin/services" ||
+        (pathname.startsWith("/dashboard/admin/services/") &&
+          pathname !== "/dashboard/admin/services/new")
+      );
     }
-    // For other links, match exact or starting subpath
-    return pathname === href || pathname.startsWith(href + "/");
+    // Check exact match for other routes
+    return pathname === href;
   };
 
   // Function 2: Handle user logout
@@ -71,19 +78,34 @@ export default function DashboardSidebar({ onItemClick }: Props) {
   };
 
   return (
-    <aside className="w-full h-full flex flex-col bg-white border-r border-[#EFECE6]">
-      {/* Top 1: SalonBook Brand Logo */}
-      <div className="p-6 border-b border-[#EFECE6]">
-        <Link
-          href="/"
-          onClick={onItemClick}
-          className="flex items-center gap-2 group"
-        >
-          <span className="font-serif text-2xl font-bold tracking-tight text-[#2D241E]">
-            Salon<span className="text-[#9E5739]">Book</span>
-          </span>
-          <Sparkles className="w-4 h-4 text-[#9E5739] group-hover:rotate-12 transition-transform" />
-        </Link>
+    <aside className="w-full h-full flex flex-col bg-white">
+      {/* Top 1: SalonBook Brand Logo + optional collapse toggle */}
+      <div className="p-5 border-b border-[#EFECE6]">
+        <div className="flex items-center justify-between">
+          <Link
+            href="/"
+            onClick={onItemClick}
+            className="flex items-center gap-2 group"
+          >
+            <span className="font-serif text-2xl font-bold tracking-tight text-[#2D241E]">
+              Salon<span className="text-[#9E5739]">Book</span>
+            </span>
+            <Sparkles className="w-4 h-4 text-[#9E5739] group-hover:rotate-12 transition-transform" />
+          </Link>
+
+          {/* Collapse sidebar button (visible on desktop inside sidebar) */}
+          {onToggleCollapse && (
+            <button
+              type="button"
+              onClick={onToggleCollapse}
+              title="Slide sidebar back"
+              aria-label="Slide sidebar back"
+              className="hidden md:flex p-1.5 rounded-lg text-[#2D241E]/60 hover:text-[#2D241E] hover:bg-[#FAF6F0] transition-colors cursor-pointer"
+            >
+              <PanelLeftClose className="w-4 h-4" />
+            </button>
+          )}
+        </div>
 
         {/* Top 2: User profile info & role badge */}
         <div className="mt-4 flex items-center gap-3 p-3 rounded-2xl bg-[#FAF6F0] border border-[#EFECE6]">
