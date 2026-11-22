@@ -267,6 +267,24 @@ export async function createCheckoutSession(
   );
 }
 
+export interface PaymentVerificationResult {
+  isPaid: boolean;
+  sessionId: string;
+  amount: number;
+  currency: string;
+  customerEmail: string;
+  customerName: string;
+  serviceName: string;
+  appointmentId: string;
+  appointment?: Appointment | null;
+}
+
+export async function verifyPaymentSession(
+  sessionId: string
+): Promise<PaymentVerificationResult> {
+  return apiFetch<PaymentVerificationResult>(`/payments/verify/${sessionId}`);
+}
+
 // ==========================================
 // Customer Dashboard APIs
 // ==========================================
