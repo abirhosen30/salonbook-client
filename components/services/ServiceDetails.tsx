@@ -26,13 +26,6 @@ export default function ServiceDetails({ id }: Props) {
   const [error, setError] = useState<string>("")
   const [open, setOpen] = useState<boolean>(false)
 
-  // Authentication protection
-  useEffect(() => {
-    if (!userLoading && !user) {
-      router.push(`/signin?redirect=/services/${id}`)
-    }
-  }, [user, userLoading, id, router])
-
   // Load service by id
   useEffect(() => {
     async function fetchService() {
@@ -206,8 +199,14 @@ export default function ServiceDetails({ id }: Props) {
               </div>
             ) : (
               <Button
-                onClick={() => setOpen(true)}
-                className="h-12 w-full rounded-xl bg-[#9E5739] text-base font-medium text-white shadow-xs transition-colors hover:bg-[#8B4A2F]"
+                onClick={() => {
+                  if (!user) {
+                    router.push(`/signin?redirect=/services/${id}`)
+                    return
+                  }
+                  setOpen(true)
+                }}
+                className="h-12 w-full cursor-pointer rounded-xl bg-[#9E5739] text-base font-medium text-white shadow-xs transition-colors hover:bg-[#8B4A2F]"
               >
                 Book Appointment
               </Button>
@@ -217,7 +216,7 @@ export default function ServiceDetails({ id }: Props) {
       </div>
 
       {/* Booking Form Dialog */}
-      {!isInactive && !isAdmin && (
+      {!isInactive && !isAdmin && user && (
         <BookingForm
           service={service}
           user={user}

@@ -1,22 +1,62 @@
 import { signOut, authClient } from "./auth-client";
 import { Service, Appointment, User, Transaction } from "@/types";
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000/api/v1";
+export const getApiBaseUrl = (): string => {
+  // If explicitly configured in env and not pointing to localhost, use it
+  if (
+    process.env.NEXT_PUBLIC_API_BASE_URL &&
+    !process.env.NEXT_PUBLIC_API_BASE_URL.includes("localhost")
+  ) {
+    return process.env.NEXT_PUBLIC_API_BASE_URL;
+  }
+
+  // When running in a live browser on a production domain (Vercel or custom domain)
+  if (typeof window !== "undefined") {
+    const hostname = window.location.hostname;
+    if (hostname !== "localhost" && hostname !== "127.0.0.1") {
+      return "https://salonbook-server-five.vercel.app/api/v1";
+    }
+  }
+
+  // When running in production on server (e.g. SSR on Vercel)
+  if (process.env.NODE_ENV === "production" || process.env.VERCEL_URL) {
+    return "https://salonbook-server-five.vercel.app/api/v1";
+  }
+
+  return process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000/api/v1";
+};
 
 // Helper for acquiring Better Auth token if available
 async function getAuthHeader(): Promise<Record<string, string>> {
   try {
-    // Attempt to read JWT token from better-auth client plugin if available
-    const tokenFn = (authClient as Record<string, unknown>).token as (() => Promise<string>) | undefined;
+    // 1. Attempt to read JWT token from better-auth client plugin if available
+    const tokenFn = (authClient as Record<string, unknown>).token as (() => Promise<any>) | undefined;
     if (typeof tokenFn === "function") {
-      const token = await tokenFn();
+      const res = await tokenFn();
+      const token = typeof res === "string" ? res : res?.data?.token || res?.token;
       if (token) {
         return { Authorization: `Bearer ${token}` };
       }
     }
-  } catch {
-    // Fall back to cookie-based session
+
+    // 2. Read session from Better Auth client getSession()
+    if (typeof authClient.getSession === "function") {
+      const sessionRes = await authClient.getSession();
+      const sessionToken = (sessionRes?.data as any)?.session?.token;
+      if (sessionToken) {
+        return { Authorization: `Bearer ${sessionToken}` };
+      }
+    }
+
+    // 3. Fallback: parse document.cookie in browser for session_token
+    if (typeof document !== "undefined") {
+      const match = document.cookie.match(/(?:^|;\s*)(?:better-auth\.session_token|session_token)=([^;]+)/);
+      if (match && match[1]) {
+        return { Authorization: `Bearer ${decodeURIComponent(match[1])}` };
+      }
+    }
+  } catch (err) {
+    console.warn("⚠️ getAuthHeader failed:", err);
   }
   return {};
 }
@@ -26,8 +66,9 @@ async function apiFetch<T>(
   options: RequestInit = {}
 ): Promise<T> {
   const authHeaders = await getAuthHeader();
+  const baseUrl = getApiBaseUrl();
 
-  const url = `${API_BASE_URL}${endpoint}`;
+  const url = `${baseUrl}${endpoint}`;
   const response = await fetch(url, {
     ...options,
     credentials: "include", // Send session cookies across origins
@@ -56,7 +97,8 @@ async function apiFetch<T>(
 export async function logout(): Promise<{ success: boolean; message: string }> {
   try {
     await signOut();
-    await fetch(`${API_BASE_URL}/auth/logout`, {
+    const baseUrl = getApiBaseUrl();
+    await fetch(`${baseUrl}/auth/logout`, {
       method: "POST",
       credentials: "include",
     }).catch(() => null);
@@ -149,8 +191,9 @@ export async function uploadImage(file: File): Promise<string> {
   formData.append("image", file);
 
   const authHeaders = await getAuthHeader();
+  const baseUrl = getApiBaseUrl();
 
-  const response = await fetch(`${API_BASE_URL}/uploads/image`, {
+  const response = await fetch(`${baseUrl}/uploads/image`, {
     method: "POST",
     credentials: "include",
     headers: {
