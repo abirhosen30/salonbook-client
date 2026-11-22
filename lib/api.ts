@@ -1,12 +1,11 @@
-import { setCurrentUser } from "./auth-client";
+import { signOut } from "./auth-client";
 import { dummyServices, dummyAppointments, Service, Appointment } from "./dummyData";
 
 const wait = (ms: number = 300) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// TODO(backend): POST /auth/logout - clears authentication session / returns success message
+// TODO(me): POST /auth/logout - clears authentication session / returns success message
 export async function logout() {
-  await wait(300);
-  setCurrentUser(null);
+  await signOut();
   return { success: true, message: "Logged out successfully" };
 }
 
@@ -83,7 +82,6 @@ export async function createAppointment(data: {
 // TODO(me): POST /api/upload - sends FormData with image file / returns image url
 export async function uploadImage(file: File): Promise<string> {
   await wait(400);
-  // Simulates cloud image upload, falls back to object URL
   if (typeof window !== "undefined") {
     return URL.createObjectURL(file);
   }

@@ -1,128 +1,137 @@
-"use client";
+"use client"
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
-import Image from "next/image";
-import { toast } from "sonner";
-import { Eye, EyeOff, Check, X, Upload, Link as LinkIcon } from "lucide-react";
-import { uploadImage } from "@/lib/api";
-import { signUp, signInWithGoogle } from "@/lib/auth-client";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { useState } from "react"
+import { useRouter } from "next/navigation"
+import Link from "next/link"
+import Image from "next/image"
+import { toast } from "sonner"
+import { Eye, EyeOff, Check, X, Upload, Link as LinkIcon } from "lucide-react"
+import { uploadImage } from "@/lib/api"
+import { signUp, signIn } from "@/lib/auth-client"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 
 export default function SignUpForm() {
-  const router = useRouter();
+  const router = useRouter()
 
-  // Form state
-  const [name, setName] = useState<string>("");
-  const [email, setEmail] = useState<string>("");
-  const [password, setPassword] = useState<string>("");
-  const [showPassword, setShowPassword] = useState<boolean>(false);
+  const [name, setName] = useState<string>("")
+  const [email, setEmail] = useState<string>("")
+  const [password, setPassword] = useState<string>("")
+  const [showPassword, setShowPassword] = useState<boolean>(false)
 
-  // Profile image mode and values
-  const [imageMode, setImageMode] = useState<"file" | "url">("file");
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imageUrl, setImageUrl] = useState<string>("");
-  const [previewUrl, setPreviewUrl] = useState<string>("");
+  const [imageMode, setImageMode] = useState<"file" | "url">("file")
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [imageUrl, setImageUrl] = useState<string>("")
+  const [previewUrl, setPreviewUrl] = useState<string>("")
 
-  // Loading states
-  const [loading, setLoading] = useState<boolean>(false);
-  const [googleLoading, setGoogleLoading] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(false)
+  const [googleLoading, setGoogleLoading] = useState<boolean>(false)
 
-  // Password rules validation
-  const hasMinLength = password.length >= 6;
-  const hasUppercase = /[A-Z]/.test(password);
-  const hasLowercase = /[a-z]/.test(password);
-  const isPasswordValid = hasMinLength && hasUppercase && hasLowercase;
+  // Password rules
+  const hasMinLength = password.length >= 6
+  const hasUppercase = /[A-Z]/.test(password)
+  const hasLowercase = /[a-z]/.test(password)
+  const isPasswordValid = hasMinLength && hasUppercase && hasLowercase
 
-  // Handle image file selection
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+    const file = e.target.files?.[0]
     if (file) {
-      setImageFile(file);
-      setPreviewUrl(URL.createObjectURL(file));
+      setImageFile(file)
+      setPreviewUrl(URL.createObjectURL(file))
     }
-  };
+  }
 
-  // Handle image URL change
   const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const url = e.target.value;
-    setImageUrl(url);
-    setPreviewUrl(url);
-  };
+    const url = e.target.value
+    setImageUrl(url)
+    setPreviewUrl(url)
+  }
 
-  // Regular Sign Up
   const handleSignUp = async (e: React.FormEvent) => {
-    e.preventDefault();
+    e.preventDefault()
 
     if (!name.trim()) {
-      toast.error("Please enter your full name");
-      return;
+      toast.error("Please enter your full name")
+      return
     }
 
     if (!email.trim() || !email.includes("@")) {
-      toast.error("Please enter a valid email address");
-      return;
+      toast.error("Please enter a valid email address")
+      return
     }
 
     if (!isPasswordValid) {
-      toast.error("Please ensure your password meets all requirements");
-      return;
+      toast.error("Please ensure your password meets all requirements")
+      return
     }
 
     try {
-      setLoading(true);
+      setLoading(true)
 
-      let finalImage = "";
+      let finalImage = ""
 
-      // Upload file if selected, otherwise use image URL
       if (imageMode === "file" && imageFile) {
-        finalImage = await uploadImage(imageFile);
+        finalImage = await uploadImage(imageFile)
       } else if (imageMode === "url" && imageUrl.trim()) {
-        finalImage = imageUrl.trim();
+        finalImage = imageUrl.trim()
       }
 
-      await signUp({
+      const signUpData = {
         name: name.trim(),
         email: email.trim(),
-        password: password,
+        password,
         image: finalImage || undefined,
-      });
+      }
 
-      toast.success("Account created successfully!");
-      router.push("/dashboard/customer");
-    } catch (error: any) {
-      const errorMsg = error?.message || "Failed to create account";
-      toast.error(errorMsg);
+      const { error } = await signUp.email({
+        name: signUpData.name,
+        email: signUpData.email,
+        password: signUpData.password,
+        image: signUpData.image,
+      })
+
+      if (error) {
+        toast.error(error.message || "Failed to create account")
+        return
+      }
+
+      toast.success("Account created successfully!")
+      router.push("/dashboard/customer")
+    } catch (error: unknown) {
+      const errorMsg =
+        error instanceof Error ? error.message : "Failed to create account"
+      toast.error(errorMsg)
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
-  // Google Sign Up
   const handleGoogleSignUp = async () => {
     try {
-      setGoogleLoading(true);
-      await signInWithGoogle();
-      toast.success("Signed in with Google!");
-      router.push("/dashboard/customer");
-    } catch (error: any) {
-      const errorMsg = error?.message || "Google sign in failed";
-      toast.error(errorMsg);
+      setGoogleLoading(true)
+      console.log("🔵 Starting Google Sign In...")
+
+      await signIn.social({
+        provider: "google",
+        callbackURL: "/dashboard/customer",
+      })
+    } catch (error: unknown) {
+      const errorMsg =
+        error instanceof Error ? error.message : "Google sign in failed"
+      toast.error(errorMsg)
     } finally {
-      setGoogleLoading(false);
+      setGoogleLoading(false)
     }
-  };
+  }
 
   return (
-    <div className="w-full max-w-md mx-auto bg-white p-8 sm:p-10 rounded-3xl border border-[#EFECE6] shadow-sm text-[#2D241E]">
+    <div className="mx-auto w-full max-w-md rounded-3xl border border-[#EFECE6] bg-white p-8 text-[#2D241E] shadow-sm sm:p-10">
       {/* Header */}
-      <div className="text-center mb-8">
-        <span className="text-xs font-semibold uppercase tracking-wider text-[#9E5739]">
+      <div className="mb-8 text-center">
+        <span className="text-xs font-semibold tracking-wider text-[#9E5739] uppercase">
           Welcome to SalonBook
         </span>
-        <h1 className="font-serif text-3xl font-bold text-[#2D241E] mt-1.5">
+        <h1 className="mt-1.5 font-serif text-3xl font-bold text-[#2D241E]">
           Create Account
         </h1>
         <p className="mt-2 text-sm text-[#2D241E]/70">
@@ -136,9 +145,9 @@ export default function SignUpForm() {
         variant="outline"
         onClick={handleGoogleSignUp}
         disabled={googleLoading || loading}
-        className="w-full h-11 border-[#EFECE6] hover:bg-[#FAF6F0] text-[#2D241E] font-medium flex items-center justify-center gap-3 rounded-xl mb-6 cursor-pointer"
+        className="mb-6 flex h-11 w-full cursor-pointer items-center justify-center gap-3 rounded-xl border-[#EFECE6] font-medium text-[#2D241E] hover:bg-[#FAF6F0]"
       >
-        <svg className="w-4 h-4" viewBox="0 0 24 24">
+        <svg className="h-4 w-4" viewBox="0 0 24 24">
           <path
             fill="#4285F4"
             d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -160,9 +169,9 @@ export default function SignUpForm() {
       </Button>
 
       {/* Divider */}
-      <div className="relative flex items-center justify-center mb-6">
-        <div className="border-t border-[#EFECE6] w-full" />
-        <span className="bg-white px-3 text-xs uppercase tracking-wider text-[#2D241E]/50 absolute">
+      <div className="relative mb-6 flex items-center justify-center">
+        <div className="w-full border-t border-[#EFECE6]" />
+        <span className="absolute bg-white px-3 text-xs tracking-wider text-[#2D241E]/50 uppercase">
           or sign up with email
         </span>
       </div>
@@ -171,7 +180,7 @@ export default function SignUpForm() {
       <form onSubmit={handleSignUp} className="space-y-4">
         {/* Full Name */}
         <div>
-          <label className="block text-xs font-semibold uppercase tracking-wider text-[#2D241E] mb-1.5">
+          <label className="mb-1.5 block text-xs font-semibold tracking-wider text-[#2D241E] uppercase">
             Full Name *
           </label>
           <Input
@@ -179,14 +188,14 @@ export default function SignUpForm() {
             placeholder="e.g. Elena Rostova"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="w-full h-11 px-3.5 bg-[#FAF6F0] border-[#EFECE6] text-[#2D241E] font-medium text-sm focus-visible:ring-[#9E5739] placeholder:text-[#2D241E]/40"
+            className="h-11 w-full border-[#EFECE6] bg-[#FAF6F0] px-3.5 text-sm font-medium text-[#2D241E] placeholder:text-[#2D241E]/40 focus-visible:ring-[#9E5739]"
             required
           />
         </div>
 
         {/* Email */}
         <div>
-          <label className="block text-xs font-semibold uppercase tracking-wider text-[#2D241E] mb-1.5">
+          <label className="mb-1.5 block text-xs font-semibold tracking-wider text-[#2D241E] uppercase">
             Email Address *
           </label>
           <Input
@@ -194,14 +203,14 @@ export default function SignUpForm() {
             placeholder="elena@example.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full h-11 px-3.5 bg-[#FAF6F0] border-[#EFECE6] text-[#2D241E] font-medium text-sm focus-visible:ring-[#9E5739] placeholder:text-[#2D241E]/40"
+            className="h-11 w-full border-[#EFECE6] bg-[#FAF6F0] px-3.5 text-sm font-medium text-[#2D241E] placeholder:text-[#2D241E]/40 focus-visible:ring-[#9E5739]"
             required
           />
         </div>
 
         {/* Password */}
         <div>
-          <label className="block text-xs font-semibold uppercase tracking-wider text-[#2D241E] mb-1.5">
+          <label className="mb-1.5 block text-xs font-semibold tracking-wider text-[#2D241E] uppercase">
             Password *
           </label>
           <div className="relative">
@@ -210,113 +219,117 @@ export default function SignUpForm() {
               placeholder="Create a strong password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full h-11 px-3.5 pr-11 bg-[#FAF6F0] border-[#EFECE6] text-[#2D241E] font-medium text-sm focus-visible:ring-[#9E5739] placeholder:text-[#2D241E]/40"
+              className="h-11 w-full border-[#EFECE6] bg-[#FAF6F0] px-3.5 pr-11 text-sm font-medium text-[#2D241E] placeholder:text-[#2D241E]/40 focus-visible:ring-[#9E5739]"
               required
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-[#2D241E]/60 hover:text-[#2D241E] p-1 transition-colors"
+              className="absolute top-1/2 right-3 -translate-y-1/2 cursor-pointer p-1 text-[#2D241E]/60 transition-colors hover:text-[#2D241E]"
               aria-label={showPassword ? "Hide password" : "Show password"}
             >
               {showPassword ? (
-                <EyeOff className="w-4 h-4" />
+                <EyeOff className="h-4 w-4" />
               ) : (
-                <Eye className="w-4 h-4" />
+                <Eye className="h-4 w-4" />
               )}
             </button>
           </div>
 
           {/* Password Rules Checklist */}
-          <div className="mt-2.5 p-3 rounded-xl bg-[#FAF6F0] border border-[#EFECE6] space-y-1.5 text-xs">
+          <div className="mt-2.5 space-y-1.5 rounded-xl border border-[#EFECE6] bg-[#FAF6F0] p-3 text-xs">
             <div
               className={`flex items-center gap-2 ${
-                hasMinLength ? "text-emerald-700 font-medium" : "text-[#2D241E]/60"
+                hasMinLength
+                  ? "font-medium text-emerald-700"
+                  : "text-[#2D241E]/60"
               }`}
             >
               {hasMinLength ? (
-                <Check className="w-3.5 h-3.5 text-emerald-600" />
+                <Check className="h-3.5 w-3.5 text-emerald-600" />
               ) : (
-                <X className="w-3.5 h-3.5 text-red-500" />
+                <X className="h-3.5 w-3.5 text-red-500" />
               )}
               <span>At least 6 characters</span>
             </div>
 
             <div
               className={`flex items-center gap-2 ${
-                hasUppercase ? "text-emerald-700 font-medium" : "text-[#2D241E]/60"
+                hasUppercase
+                  ? "font-medium text-emerald-700"
+                  : "text-[#2D241E]/60"
               }`}
             >
               {hasUppercase ? (
-                <Check className="w-3.5 h-3.5 text-emerald-600" />
+                <Check className="h-3.5 w-3.5 text-emerald-600" />
               ) : (
-                <X className="w-3.5 h-3.5 text-red-500" />
+                <X className="h-3.5 w-3.5 text-red-500" />
               )}
               <span>At least one uppercase letter (A-Z)</span>
             </div>
 
             <div
               className={`flex items-center gap-2 ${
-                hasLowercase ? "text-emerald-700 font-medium" : "text-[#2D241E]/60"
+                hasLowercase
+                  ? "font-medium text-emerald-700"
+                  : "text-[#2D241E]/60"
               }`}
             >
               {hasLowercase ? (
-                <Check className="w-3.5 h-3.5 text-emerald-600" />
+                <Check className="h-3.5 w-3.5 text-emerald-600" />
               ) : (
-                <X className="w-3.5 h-3.5 text-red-500" />
+                <X className="h-3.5 w-3.5 text-red-500" />
               )}
               <span>At least one lowercase letter (a-z)</span>
             </div>
           </div>
         </div>
 
-        {/* Profile Image (File upload OR image URL) */}
+        {/* Profile Image */}
         <div>
-          <label className="block text-xs font-semibold uppercase tracking-wider text-[#2D241E] mb-1.5">
+          <label className="mb-1.5 block text-xs font-semibold tracking-wider text-[#2D241E] uppercase">
             Profile Image (Optional)
           </label>
 
-          {/* Image Mode Switcher */}
-          <div className="flex rounded-xl bg-[#FAF6F0] p-1 border border-[#EFECE6] mb-2.5 text-xs font-medium">
+          <div className="mb-2.5 flex rounded-xl border border-[#EFECE6] bg-[#FAF6F0] p-1 text-xs font-medium">
             <button
               type="button"
               onClick={() => {
-                setImageMode("file");
-                setPreviewUrl(imageFile ? URL.createObjectURL(imageFile) : "");
+                setImageMode("file")
+                setPreviewUrl(imageFile ? URL.createObjectURL(imageFile) : "")
               }}
-              className={`flex-1 py-1.5 rounded-lg flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
+              className={`flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg py-1.5 transition-colors ${
                 imageMode === "file"
                   ? "bg-white text-[#9E5739] shadow-xs"
                   : "text-[#2D241E]/70 hover:text-[#2D241E]"
               }`}
             >
-              <Upload className="w-3.5 h-3.5" />
+              <Upload className="h-3.5 w-3.5" />
               Upload File
             </button>
             <button
               type="button"
               onClick={() => {
-                setImageMode("url");
-                setPreviewUrl(imageUrl);
+                setImageMode("url")
+                setPreviewUrl(imageUrl)
               }}
-              className={`flex-1 py-1.5 rounded-lg flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
+              className={`flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg py-1.5 transition-colors ${
                 imageMode === "url"
                   ? "bg-white text-[#9E5739] shadow-xs"
                   : "text-[#2D241E]/70 hover:text-[#2D241E]"
               }`}
             >
-              <LinkIcon className="w-3.5 h-3.5" />
+              <LinkIcon className="h-3.5 w-3.5" />
               Image URL
             </button>
           </div>
 
-          {/* File Upload Input */}
           {imageMode === "file" ? (
             <Input
               type="file"
               accept="image/*"
               onChange={handleFileChange}
-              className="w-full h-11 px-3.5 bg-[#FAF6F0] border-[#EFECE6] text-[#2D241E] text-xs focus-visible:ring-[#9E5739] file:mr-3 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-medium file:bg-[#9E5739] file:text-white cursor-pointer"
+              className="h-11 w-full cursor-pointer border-[#EFECE6] bg-[#FAF6F0] px-3.5 text-xs text-[#2D241E] file:mr-3 file:rounded-md file:border-0 file:bg-[#9E5739] file:px-3 file:py-1 file:text-xs file:font-medium file:text-white focus-visible:ring-[#9E5739]"
             />
           ) : (
             <Input
@@ -324,14 +337,13 @@ export default function SignUpForm() {
               placeholder="https://example.com/avatar.jpg"
               value={imageUrl}
               onChange={handleUrlChange}
-              className="w-full h-11 px-3.5 bg-[#FAF6F0] border-[#EFECE6] text-[#2D241E] font-medium text-sm focus-visible:ring-[#9E5739] placeholder:text-[#2D241E]/40"
+              className="h-11 w-full border-[#EFECE6] bg-[#FAF6F0] px-3.5 text-sm font-medium text-[#2D241E] placeholder:text-[#2D241E]/40 focus-visible:ring-[#9E5739]"
             />
           )}
 
-          {/* Image Preview */}
           {previewUrl && (
-            <div className="mt-3 flex items-center gap-3 p-2.5 bg-[#FAF6F0] rounded-xl border border-[#EFECE6]">
-              <div className="relative w-12 h-12 rounded-full overflow-hidden border border-[#9E5739]/30 bg-neutral-100 shrink-0">
+            <div className="mt-3 flex items-center gap-3 rounded-xl border border-[#EFECE6] bg-[#FAF6F0] p-2.5">
+              <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full border border-[#9E5739]/30 bg-neutral-100">
                 <Image
                   src={previewUrl}
                   alt="Avatar preview"
@@ -340,7 +352,7 @@ export default function SignUpForm() {
                   unoptimized
                 />
               </div>
-              <div className="text-xs text-[#2D241E]/70 overflow-hidden">
+              <div className="overflow-hidden text-xs text-[#2D241E]/70">
                 <p className="font-semibold text-[#2D241E]">Preview selected</p>
                 <p className="truncate">
                   {imageMode === "file" && imageFile
@@ -352,11 +364,11 @@ export default function SignUpForm() {
           )}
         </div>
 
-        {/* Submit Button */}
+        {/* Submit */}
         <Button
           type="submit"
           disabled={loading || googleLoading}
-          className="w-full h-11 mt-2 bg-[#9E5739] hover:bg-[#8B4A2F] text-white font-medium text-sm rounded-xl cursor-pointer shadow-xs transition-colors"
+          className="mt-2 h-11 w-full cursor-pointer rounded-xl bg-[#9E5739] text-sm font-medium text-white shadow-xs transition-colors hover:bg-[#8B4A2F]"
         >
           {loading ? "Creating Account..." : "Create Account"}
         </Button>
@@ -373,5 +385,5 @@ export default function SignUpForm() {
         </Link>
       </div>
     </div>
-  );
+  )
 }
