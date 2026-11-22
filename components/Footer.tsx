@@ -1,7 +1,17 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { MapPin, Phone, Mail, Clock } from "lucide-react";
 
 export default function Footer() {
+  const pathname = usePathname();
+
+  // Hide main Footer on /dashboard routes
+  if (pathname.startsWith("/dashboard")) {
+    return null;
+  }
+
   return (
     <footer className="bg-[#FAF6F0] text-[#2D241E] border-t border-[#EFECE6]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 sm:py-16">

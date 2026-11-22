@@ -55,6 +55,11 @@ export default function Navbar() {
     }
   }
 
+  // Hide main Navbar on /dashboard routes
+  if (pathname.startsWith("/dashboard")) {
+    return null;
+  }
+
   const isActive = (path: string) => {
     if (path === "/" && pathname === "/") return true
     if (path !== "/" && pathname.startsWith(path)) return true
