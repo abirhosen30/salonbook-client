@@ -12,7 +12,7 @@ export function useCurrentUser() {
         email: session.user.email,
         image: session.user.image || undefined,
         role: (session.user.role as "customer" | "admin") || "customer",
-        isBlocked: false,
+        isBlocked: Boolean((session.user as Record<string, unknown>).isBlocked),
         phone: undefined,
       }
     : null;
