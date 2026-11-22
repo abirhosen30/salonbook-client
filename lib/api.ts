@@ -87,3 +87,27 @@ export async function uploadImage(file: File): Promise<string> {
   }
   return "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80";
 }
+
+export type CustomerStats = {
+  total: number;
+  pending: number;
+  confirmed: number;
+  cancelled: number;
+};
+
+// TODO(me): GET /api/customer/stats - sends user session / returns stats counts
+export async function getCustomerStats(): Promise<CustomerStats> {
+  await wait(300);
+  const total = dummyAppointments.length;
+  const pending = dummyAppointments.filter((a) => a.status === "pending").length;
+  const confirmed = dummyAppointments.filter((a) => a.status === "confirmed").length;
+  const cancelled = dummyAppointments.filter((a) => a.status === "cancelled").length;
+
+  return { total, pending, confirmed, cancelled };
+}
+
+// TODO(me): GET /api/customer/appointments - sends user session / returns list of customer appointments
+export async function getMyAppointments(): Promise<Appointment[]> {
+  await wait(400);
+  return [...dummyAppointments];
+}
